@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <link rel="shortcut icon" href="https://static.wixstatic.com/media/ed8e84_ca0ffb8692a14d8e8d514863e46e478b%7Emv2.png/v1/fill/w_32%2Ch_32%2Clg_1%2Cusm_0.66_1.00_0.01/ed8e84_ca0ffb8692a14d8e8d514863e46e478b%7Emv2.png">
+
+        <title>OH-6A Cayuse</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            h1{
+              font-family: Verdana;
+              color: #fff;
+            }
+            h2{
+              font-family: Verdana;
+              font-size: 20px;
+              color: #fff;
+            }
+          .button0{
+            font-family: Verdana;
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            background-color: rgba(15, 45, 90, 1);
+            border: none;
+          }
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+          #info {
+          	position:absolute;
+            top:0;
+            z-index: 100;
+            width: 100%;
+            padding-left:20px;
+            padding-top:10px;
+            padding-bottom:10px;
+            display:block;
+            background-color: rgb(15, 45, 90);
+          }
+          #canopybutton {
+          	position:absolute;
+            top:100px;
+            z-index: 100;
+            width: 200px;
+            padding-top:2px;
+            padding-bottom:2px;
+            display:block;
+            font-family: Verdana;
+            font-size: 15px;
+            font-weight: bold;
+            color: #fff;
+            background-color: rgba(15, 45, 90, 0.6);
+            text-align: center;
+          }
+          #propbutton {
+          	position:absolute;
+            top:154px;
+            z-index: 100;
+            width: 200px;
+            padding-top:2px;
+            padding-bottom:2px;
+            display:block;
+            font-family: Verdana;
+            font-size: 15px;
+            font-weight: bold;
+            color: #fff;
+            background-color: rgba(15, 45, 90, 0.6);
+            text-align: center;
+          }
+          #footer
+          {
+            position: absolute;
+            background-color: rgb(15, 45, 90);
+            height: 60px;
+            width: 100%;
+            text-align: left;
+            z-index: 100;
+            bottom: 0;
+            color: #fff;
+            font-family: Verdana;
+            font-size: 18px;
+            font-weight: bold;
+            display:block;
+          }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+
+        var queryString = window.location.search;
+        var urlParams = new URLSearchParams(queryString);
+        var modelId = urlParams.get("modelId");
+      
+        var canvas = document.getElementById("renderCanvas");
+
+        var wingState = false;
+        var canopyState = false;
+        var propState = false;
+        var hookState = false;
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var delayCreateScene = function () {
+            // Create a scene.
+            var scene = new BABYLON.Scene(engine);
+            scene.gravity = new BABYLON.Vector3(0, -0.9, 0);
+        
+            // Create a default skybox with an environment.
+            scene.clearColor = BABYLON.Color3.White();
+            scene.ambientColor = BABYLON.Color3.White();
+            var hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/textures/country.dds", scene);
+            var currentSkybox = scene.createDefaultSkybox(hdrTexture, false);
+        
+            // Append glTF model to scene.
+            BABYLON.SceneLoader.Append("/", 'oh6-hangar-a2.glb', scene, function (scene) {
+              scene.createDefaultCameraOrLight(true, true, true);
+              scene.activeCamera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(8, 1.5, -16), scene);
+              scene.activeCamera.setTarget(new BABYLON.Vector3(0, 1.5, 0));
+              scene.activeCamera.attachControl(canvas, true);
+              scene.activeCamera.minZ = 0.1;
+              scene.activeCamera.checkCollisions = true;
+              scene.activeCamera.applyGravity = true;
+              scene.activeCamera.ellipsoid = new BABYLON.Vector3(1, 1, 1);
+
+              scene.animationGroups.forEach(group => {
+                  group.stop();
+                  group.reset();
+              });
+
+              const wingsAnim = scene.getAnimationGroupByName("wings");
+              window.moveWings=()=>{
+                if(wingState == true){
+                  wingsAnim.start(false, 1.0, wingsAnim.to, wingsAnim.from, false);
+                  wingState = !wingState;
+                }else{
+                  wingsAnim.start(false, 1.0, wingsAnim.from, wingsAnim.to, false);
+                  wingState = !wingState;
+                }
+              }
+
+              const canopyAnim = scene.getAnimationGroupByName("doors");
+              window.moveCanopy=()=>{
+                if(canopyState == true){
+                  canopyAnim.start(false, 1.0, canopyAnim.to, canopyAnim.from, false);
+                  canopyState = !canopyState;
+                  document.getElementById("canopyText").innerHTML = "Open Doors";
+                }else{
+                  canopyAnim.start(false, 1.0, canopyAnim.from, canopyAnim.to, false);
+                  canopyState = !canopyState;
+                  document.getElementById("canopyText").innerHTML = "Close Doors";
+                }
+              }
+
+              const propAnim = scene.getAnimationGroupByName("engine");
+              const throtAnim = scene.getAnimationGroupByName("throttle");
+              window.engineStart=()=>{
+                if(propState == false){
+                  propAnim.start(true, 1.0, propAnim.from, propAnim.to, false);
+                  throtAnim.start(false, 1.0, propAnim.from, propAnim.to, false);
+                  propState = !propState;
+                  document.getElementById("engineText").innerHTML = "Stop Engine";
+                }else{
+                  propAnim.stop();
+                  throtAnim.start(false, 1.0, propAnim.to, propAnim.from, false);
+                  propState = !propState;
+                  document.getElementById("engineText").innerHTML = "Start Engine";
+                }
+              }
+
+              const hookAnim = scene.getAnimationGroupByName("hook");
+              window.moveHook=()=>{
+                if(hookState == true){
+                  hookAnim.start(false, 1.0, hookAnim.to, hookAnim.from, false);
+                  hookState = !hookState;
+                }else{
+                  hookAnim.start(false, 1.0, hookAnim.from, hookAnim.to, false);
+                  hookState = !hookState;
+                }
+              }
+            });
+
+          //Ground
+          var ground = BABYLON.Mesh.CreatePlane("ground", 1000.0, scene);
+          ground.material = new BABYLON.StandardMaterial("groundMat", scene);
+          ground.material.diffuseColor = new BABYLON.Color3(0.75, 0.8, 0.9);
+          ground.material.backFaceCulling = false;
+          ground.position = new BABYLON.Vector3(5, -0.5, -15);
+          ground.rotation = new BABYLON.Vector3(Math.PI / 2, 0, 0);
+          ground.checkCollisions = true;
+
+          var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+
+          myMaterial.alpha = 0;
+
+          window.cockpit=()=>{
+            scene.activeCamera.position = new BABYLON.Vector3(0.5, 2, -1);
+            scene.activeCamera.setTarget(new BABYLON.Vector3(0, 1.5, -10));
+          }
+          window.resetCam=()=>{
+            scene.activeCamera.position = new BABYLON.Vector3(8, 1.5, -16);
+            scene.activeCamera.setTarget(new BABYLON.Vector3(0, 1.5, 0));
+          }
+        
+            return scene;
+        };
+                window.initFunction = async function() {
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        window.scene = delayCreateScene();};
+        initFunction().then(() => {sceneToRender = scene        
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+    <div id="info">
+        <a href="https://www.ctairandspace.org"><img src="https://static.wixstatic.com/media/ed8e84_4ea669124b7a4422a4928e551663c595~mv2.png/v1/crop/x_0,y_2,w_1681,h_583/fill/w_340,h_118,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/casc_logo_LONG-01.png" alt="Home" style="width:150px;height:50px;padding-left:25px;padding-right:45px;padding-top:1px;padding-bottom:1px"/></a>
+        <h2 style="display:inline; padding-right:20px;">Hughes OH-6A "Little Bird" Cayuse</h2>
+        <button class="button0" onclick="cockpit()"><p>|Enter Cockpit|</p></button>
+        <button class="button0" onclick="resetCam()"><p>|Reset Camera|</p></button>
+    </div>
+    <button id="canopybutton" onclick="moveCanopy()"><p id="canopyText">Open Doors</p></button>
+    <button id="propbutton" onclick="engineStart()"><p id="engineText">Start Engine</p></button>
+  <div id="footer">
+    <p style="padding-left:5%">Arrow keys to move. Click and drag to pan.</p>
+  </div>
+</body>
+</html>
